@@ -1,0 +1,15 @@
+# netlify.toml
+# Place this file in the ROOT of your Netlify project folder
+
+[build]
+  # Where your HTML file lives (root of project)
+  publish = "."
+
+  # Netlify will auto-detect and build the functions from this folder
+  functions = "netlify/functions"
+
+# Optional: redirect /api/proxy to the function for cleaner URLs
+[[redirects]]
+  from = "/api/proxy"
+  to   = "/.netlify/functions/proxy"
+  status = 200
