@@ -1,4 +1,5 @@
 // netlify/functions/proxy.js
+const fetch   = require('node-fetch');
 const GAS_URL   = process.env.GAS_URL;
 const API_TOKEN = process.env.API_TOKEN;
 
@@ -32,41 +33,46 @@ exports.handler = async function (event) {
     };
   }
 
+  if (!GAS_URL || !API_TOKEN) {
+    console.error('Missing env vars — GAS_URL:', !!GAS_URL, 'API_TOKEN:', !!API_TOKEN);
+    return {
+      statusCode: 500,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ success: false, error: 'Server misconfiguration: missing env vars' }),
+    };
+  }
+
   const forwardParams = new URLSearchParams({ ...params, token: API_TOKEN });
   const gasUrl = `${GAS_URL}?${forwardParams.toString()}`;
 
   try {
-    // ── Attempt 1: redirect follow ──
-    const r1 = await fetch(gasUrl, { method: 'GET', redirect: 'follow' });
-    const t1  = await r1.text();
+    // First fetch — GAS will 302 redirect
+    const r1 = await fetch(gasUrl, { redirect: 'manual' });
 
-    // Log full diagnostics to Netlify function logs
-    console.log('=== GAS DIAGNOSTIC ===');
-    console.log('GAS_URL set:', !!GAS_URL);
-    console.log('API_TOKEN set:', !!API_TOKEN);
-    console.log('Action:', action);
-    console.log('Final URL (token redacted):', gasUrl.replace(API_TOKEN, 'REDACTED'));
-    console.log('Response status:', r1.status);
-    console.log('Response headers:', JSON.stringify([...r1.headers.entries()]));
-    console.log('Body (first 500 chars):', t1.slice(0, 500));
-    console.log('======================');
+    let finalResponse;
 
-    // Return diagnostics as JSON so you can see them in the browser too
-    if (t1.trimStart().startsWith('<')) {
+    if (r1.status === 301 || r1.status === 302 || r1.status === 303) {
+      const location = r1.headers.get('location');
+      console.log('GAS redirected to:', location);
+      if (!location) throw new Error('GAS redirect missing Location header');
+      finalResponse = await fetch(location, { redirect: 'follow' });
+    } else {
+      finalResponse = r1;
+    }
+
+    const text = await finalResponse.text();
+    console.log('GAS response status:', finalResponse.status);
+    console.log('GAS body preview:', text.slice(0, 300));
+
+    if (text.trimStart().startsWith('<')) {
+      console.error('GAS returned HTML — likely wrong URL or token');
       return {
-        statusCode: 200,
+        statusCode: 502,
         headers: { ...CORS, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           success: false,
-          debug: {
-            gas_url_set:   !!GAS_URL,
-            token_set:     !!API_TOKEN,
-            action,
-            http_status:   r1.status,
-            response_headers: Object.fromEntries(r1.headers.entries()),
-            body_preview:  t1.slice(0, 500),
-          },
-          error: 'GAS returned HTML — see debug object for details',
+          error: 'GAS returned HTML. Check GAS_URL and API_TOKEN env vars, and ensure GAS is deployed as Execute as: Me / Anyone.',
+          preview: text.slice(0, 300),
         }),
       };
     }
@@ -74,15 +80,15 @@ exports.handler = async function (event) {
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },
-      body: t1,
+      body: text,
     };
 
   } catch (err) {
-    console.error('Proxy fetch error:', err);
+    console.error('Proxy fetch error:', err.message);
     return {
       statusCode: 502,
       headers: { ...CORS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: false, error: err.message }),
+      body: JSON.stringify({ success: false, error: 'Proxy fetch failed: ' + err.message }),
     };
   }
 };
