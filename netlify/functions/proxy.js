@@ -1,11 +1,7 @@
 // netlify/functions/proxy.js
-// This function acts as a secure middleman between your HTML and Google Apps Script.
-// The GAS URL and API token are stored as Netlify environment variables — never in the browser.
+const GAS_URL   = process.env.GAS_URL;
+const API_TOKEN = process.env.API_TOKEN;
 
-const GAS_URL   = process.env.GAS_URL;    // Your Apps Script deployment URL
-const API_TOKEN = process.env.API_TOKEN;  // Your secret token
-
-// Actions that are allowed through this proxy
 const ALLOWED_ACTIONS = [
   'login',
   'getTgercDocs',
@@ -26,19 +22,16 @@ const ALLOWED_ACTIONS = [
 ];
 
 exports.handler = async function (event) {
-  // ── CORS headers so your Netlify-hosted HTML can call this function ──
   const CORS = {
-    'Access-Control-Allow-Origin': '*',        // tighten to your Netlify domain in production
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
-  // Preflight request
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS, body: '' };
   }
 
-  // Only GET allowed
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
@@ -47,11 +40,9 @@ exports.handler = async function (event) {
     };
   }
 
-  // Read query params sent by the browser
   const params = event.queryStringParameters || {};
   const action = params.action || '';
 
-  // Validate action is in the allowed list
   if (!action || !ALLOWED_ACTIONS.includes(action)) {
     return {
       statusCode: 400,
@@ -60,16 +51,38 @@ exports.handler = async function (event) {
     };
   }
 
-  // Build the query string to forward to Apps Script
-  // We inject the real token here — the browser never sends or sees it
   const forwardParams = new URLSearchParams({ ...params, token: API_TOKEN });
+  const gasUrl = `${GAS_URL}?${forwardParams.toString()}`;
 
   try {
-    const gasResponse = await fetch(`${GAS_URL}?${forwardParams.toString()}`, {
+    // ── Step 1: hit GAS — it will 302 redirect ──
+    let response = await fetch(gasUrl, {
       method: 'GET',
-      redirect: 'follow',
+      redirect: 'manual',   // don't auto-follow — GAS sends an HTML redirect page
     });
-    const text = await gasResponse.text();
+
+    // ── Step 2: follow the Location header manually ──
+    if (response.status === 301 || response.status === 302 || response.status === 303) {
+      const redirectUrl = response.headers.get('location');
+      if (!redirectUrl) throw new Error('GAS redirect had no Location header');
+      response = await fetch(redirectUrl, {
+        method: 'GET',
+        redirect: 'follow',
+      });
+    }
+
+    const text = await response.text();
+
+    // Guard: if we still got HTML somehow, return a clean error
+    if (text.trimStart().startsWith('<')) {
+      console.error('GAS returned HTML instead of JSON:', text.slice(0, 200));
+      return {
+        statusCode: 502,
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ success: false, error: 'Backend returned unexpected response. Check GAS deployment.' }),
+      };
+    }
+
     return {
       statusCode: 200,
       headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -80,7 +93,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 502,
       headers: { ...CORS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: false, error: 'Failed to reach backend' }),
+      body: JSON.stringify({ success: false, error: 'Failed to reach backend: ' + err.message }),
     };
   }
 };
