@@ -251,7 +251,8 @@ tr:hover td{background:#f5f9ff}
 .cal-day.empty{background:transparent;border-color:transparent}
 .cal-day-num{font-size:11px;font-weight:600;line-height:1;z-index:1;margin-bottom:2px}
 .cal-day.sunday .cal-day-num{color:#b71c1c;font-weight:700}
-.cal-day.saturday .cal-day-num{color:#1a2a3a;font-weight:600}
+.cal-day.saturday .cal-day-num{color:#b71c1c;font-weight:700}
+.cal-day.saturday{background:#ffcdd2 !important}
 .cal-day.holiday-g .cal-day-num{color:#b71c1c;font-weight:700}
 .cal-day.sunday{background:#ffcdd2 !important}
 .cal-day.second-saturday{background:#ffcdd2 !important}
@@ -259,6 +260,17 @@ tr:hover td{background:#f5f9ff}
 .cal-day.holiday-g{background:#ffcdd2 !important}
 .cal-day.holiday-o{background:#c8e6c9 !important}
 .cal-day.holiday-o .cal-day-num{color:#1b5e20;font-weight:700}
+.cal-day.sat-duty{background:#fff8e1 !important;border:1.5px solid #f59e0b !important}
+.cal-day.sat-duty .cal-day-num{color:#92400e !important;font-weight:700}
+.cal-mark-duty{font-size:8px;font-weight:700;padding:0px 3px;border-radius:2px;line-height:1.3;background:#f59e0b;color:#fff;white-space:nowrap}
+.sat-duty-widget{background:#fff;border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem}
+.sat-duty-row{display:flex;align-items:center;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:13px}
+.sat-duty-row:last-child{border-bottom:none}
+.sat-duty-date{font-weight:700;color:var(--blue);font-size:12px;min-width:90px}
+.sat-duty-names{color:#1a2a3a;font-size:12px}
+.sat-duty-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:#fef3c7;color:#92400e;border:1px solid #f59e0b}
+.sat-duty-badge.on{background:#dcfce7;color:#166534;border-color:#86efac}
+.sat-duty-none{font-size:12px;color:var(--muted);font-style:italic;padding:.4rem 0}
 .cal-day.today-mark{outline:2px solid var(--blue);outline-offset:-2px;border-radius:4px}
 .cal-day.today-mark .cal-day-num{font-weight:800;color:var(--blue)}
 .cal-marks{display:flex;flex-wrap:wrap;gap:2px;justify-content:center;max-width:100%;margin-top:1px}
@@ -570,6 +582,11 @@ tr:hover td{background:#f5f9ff}
           <div class="hw-title">🎂 Upcoming Birthdays (Next 30 Days)</div>
           <div id="homeBdayContent"></div>
         </div>
+        <!-- Saturday Duty Widget -->
+        <div class="sat-duty-widget" id="homeSatDutyWidget" style="display:none">
+          <div class="hw-title">🗓️ Saturday Duty Roster — Next 2 Weeks</div>
+          <div id="homeSatDutyContent"><div class="sat-duty-none">Loading...</div></div>
+        </div>
       </div>
     </div>
 
@@ -746,7 +763,8 @@ tr:hover td{background:#f5f9ff}
     <div id="calendar-tab" class="tab-content">
       <div class="cal-year-title" id="calYearTitle">TGERC — Annual Calendar</div>
       <div class="cal-legend">
-        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ffcdd2;border:1px solid #e57373;border-radius:2px;width:14px;height:14px"></div>Sunday / 2nd Saturday / General Holiday</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#ffcdd2;border:1px solid #e57373;border-radius:2px;width:14px;height:14px"></div>Sunday / Saturday / General Holiday</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#fff8e1;border:1.5px solid #f59e0b;border-radius:2px;width:14px;height:14px"></div>Saturday — On Duty</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#c8e6c9;border:1px solid #66bb6a;border-radius:2px;width:14px;height:14px"></div>Optional Holiday</div>
         <div class="cal-legend-item"><span class="cal-mark mark-cl" style="font-size:9px">CL</span>&nbsp;Casual Leave</div>
         <div class="cal-legend-item"><span class="cal-mark mark-scl" style="font-size:9px">SCL</span>&nbsp;SCL/CCL</div>
@@ -1001,7 +1019,7 @@ async function sha256(str){
 let employees = []; // populated on page load via getEmployees action
 let adminConfig = {}; // populated on page load: { admin_user, admin_pass_hash }
 
-let fileIdMap={}, taxDocMap={}, months=[], leaveBalances=[], leaveHistory=[], optionalHolidays=[], generalHolidays=[], employeeBirthdays=[], taxData=[], notices=[], currentEmp=null;
+let fileIdMap={}, taxDocMap={}, months=[], leaveBalances=[], leaveHistory=[], optionalHolidays=[], generalHolidays=[], employeeBirthdays=[], taxData=[], notices=[], satDuties=[], currentEmp=null;
 let _allPsRows=[], _currentLeaveHistory=[];
 
 // ===== HELPERS =====
@@ -1109,9 +1127,9 @@ function calcWorkingDaysRemaining(){
     const dow = dt.getDay();
     const key = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isSun = dow === 0;
-    const isSecondSat = dow === 6 && Math.ceil(d/7) === 2;
+    const isSat = dow === 6;
     const isHol = holSet.has(key);
-    if(!isSun && !isSecondSat && !isHol){
+    if(!isSun && !isSat && !isHol){
       totalWorking++;
       if(dt >= today) remaining++;
     }
@@ -1535,6 +1553,72 @@ function buildHomeTab(emp){
       </div>`;
     }).join('');
   }
+
+  // Saturday duty widget
+  buildSatDutyWidget(emp);
+}
+
+// ===== SATURDAY DUTY WIDGET =====
+function buildSatDutyWidget(emp){
+  const widget  = document.getElementById('homeSatDutyWidget');
+  const content = document.getElementById('homeSatDutyContent');
+  if(!widget||!content) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Find next 2 Saturdays from today (inclusive if today is Saturday)
+  const upcomingSats = [];
+  const d = new Date(today);
+  // start from today, walk forward until we have 2 Saturdays within 14 days
+  for(let i=0; i<=14 && upcomingSats.length<2; i++){
+    const check = new Date(today); check.setDate(today.getDate()+i);
+    if(check.getDay()===6) upcomingSats.push(new Date(check));
+  }
+
+  if(upcomingSats.length===0){
+    widget.style.display='none'; return;
+  }
+
+  const genHolKeys = new Set(generalHolidays.map(gh=>toDateKey(gh['Date'])).filter(Boolean));
+
+  const rows = upcomingSats.map(sat=>{
+    const dateKey  = toDateKey(sat);
+    const isSecSat = Math.ceil(sat.getDate()/7)===2;
+    const isGazHol = genHolKeys.has(dateKey);
+
+    // If 2nd Saturday or General Holiday — no duty possible
+    if(isSecSat||isGazHol){
+      const label = isGazHol ? 'General Holiday' : '2nd Saturday';
+      return `<div class="sat-duty-row">
+        <span class="sat-duty-date">${sat.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</span>
+        <span class="sat-duty-names" style="color:var(--muted);font-style:italic">${label} — No duty</span>
+      </div>`;
+    }
+
+    const duties = satDuties.filter(r=>{
+      const k=toDateKey(r['Date']); return k===dateKey;
+    });
+
+    const amOnDuty = emp && duties.some(r=>norm(r['Emp Code'])===norm(emp.code));
+    const names    = duties.map(r=>String(r['Emp Name']||'').trim()).filter(Boolean);
+
+    const badge = amOnDuty
+      ? `<span class="sat-duty-badge on">🔧 You are on duty</span>`
+      : `<span class="sat-duty-badge">Holiday for you</span>`;
+
+    const namesList = names.length
+      ? `<span class="sat-duty-names">${names.join(', ')}</span>`
+      : `<span class="sat-duty-none">No duties assigned yet</span>`;
+
+    return `<div class="sat-duty-row">
+      <span class="sat-duty-date">${sat.toLocaleDateString('en-GB',{day:'2-digit',month:'short',weekday:'short'})}</span>
+      ${namesList}
+      ${badge}
+    </div>`;
+  });
+
+  content.innerHTML = rows.join('');
+  widget.style.display = 'block';
 }
 
 // ===== PAYSLIPS =====
@@ -1731,8 +1815,7 @@ function buildNonWorkingSet(fromDate, toDate){
     const isSun = dow === 0;
     const isSat = dow === 6;
     const dayOfMonth = d.getDate();
-    const isSecondSat = isSat && Math.ceil(dayOfMonth/7) === 2;
-    if(isSun || isSecondSat || genHolKeys.has(k)) nonWorking.add(k);
+    if(isSun || isSat || genHolKeys.has(k)) nonWorking.add(k);
     d.setDate(d.getDate()+1);
   }
   return nonWorking;
@@ -1770,10 +1853,9 @@ function findAdjacentHolidays(fromDateStr, toDateStr){
     if(genHolMap[k]){
       before.unshift({ dateStr: k, name: genHolMap[k], date: new Date(d) });
     } else {
-      // Stop if we hit a non-holiday working day
+      // Stop if we hit a non-holiday working day (all Saturdays now non-working)
       const dow = d.getDay();
-      const isSecondSat = dow===6 && Math.ceil(d.getDate()/7)===2;
-      if(dow!==0 && !isSecondSat) break;
+      if(dow!==0 && dow!==6) break;
     }
   }
   // Look forward up to 3 days after to
@@ -1784,8 +1866,7 @@ function findAdjacentHolidays(fromDateStr, toDateStr){
       after.push({ dateStr: k, name: genHolMap[k], date: new Date(d) });
     } else {
       const dow = d.getDay();
-      const isSecondSat = dow===6 && Math.ceil(d.getDate()/7)===2;
-      if(dow!==0 && !isSecondSat) break;
+      if(dow!==0 && dow!==6) break;
     }
   }
   return { before, after };
@@ -2226,9 +2307,23 @@ function buildCalendar(emp, mobileNavTrigger){
       myLeavesRaw.forEach(({type,days})=>{leaveByType[type]=(leaveByType[type]||0)+days;});
       const myLeaveTypes=Object.keys(leaveByType);
 
+      // Saturday duty — who is on duty this Saturday?
+      const satDutyPeople = isSat ? satDuties
+        .filter(r=>{ const k=toDateKey(r['Date']); return k===dateKey; })
+        .map(r=>String(r['Emp Name']||'').trim())
+        .filter(Boolean) : [];
+      const amOnDuty = isSat && currentEmp && satDuties.some(r=>{
+        const k=toDateKey(r['Date']);
+        return k===dateKey && norm(r['Emp Code'])===norm(currentEmp.code);
+      });
+      // Saturday is a holiday unless it is a general holiday (already red) and not 2nd sat
+      // Duty-assigned employees get amber, everyone else red
+      const isSatHoliday = isSat && !isGaz; // Saturdays not already covered by gazette
+
       let cls='cal-day';
       if(isSun) cls+=' sunday';
-      if(isSat) cls+=' saturday';
+      if(isSat && amOnDuty && !isGaz && !isSecondSat) cls+=' sat-duty';
+      else if(isSat) cls+=' saturday';
       if(isSecondSat) cls+=' second-saturday';
       if(isGaz) cls+=' holiday-g';
       else if(isOpt) cls+=' holiday-o';
@@ -2239,7 +2334,9 @@ function buildCalendar(emp, mobileNavTrigger){
       const tips=[];
       if(isGaz) tips.push('🎉 '+genHolMap[dateKey]);
       if(isOpt) tips.push('📌 '+optHolMap[dateKey]);
-      if(isSecondSat&&!isGaz) tips.push('2nd Saturday');
+      if(isSecondSat&&!isGaz) tips.push('2nd Saturday — Holiday');
+      if(isSatHoliday&&!isSecondSat) tips.push('Saturday — Holiday');
+      if(satDutyPeople.length) tips.push('🔧 On Duty: '+satDutyPeople.join(', '));
       if(myLeaveTypes.length){
         const typeStr=myLeaveTypes.map(t=>{
           const d=leaveByType[t];
@@ -2264,6 +2361,12 @@ function buildCalendar(emp, mobileNavTrigger){
         cell.appendChild(marks);
       }
       if(bdayPeople.length){const bday=document.createElement('div');bday.className='cal-bday';bday.textContent='🎂';cell.appendChild(bday);}
+      if(isSat&&satDutyPeople.length&&!isGaz&&!isSecondSat){
+        const dutyBadge=document.createElement('span');
+        dutyBadge.className='cal-mark-duty';
+        dutyBadge.textContent=amOnDuty?'🔧 On Duty':'🔧';
+        cell.appendChild(dutyBadge);
+      }
       daysWrap.appendChild(cell);
     }
     const totalCells=firstDay+daysInMonth; const remainder=totalCells%7;
@@ -2308,7 +2411,7 @@ async function fetchMasterFileIDs(){
 
 async function fetchLeaveData(){
   try{
-    const sheets=['Leave Balance','Leave History','Optional Holidays','Birthdays','General Holidays','Taxes'];
+    const sheets=['Leave Balance','Leave History','Optional Holidays','Birthdays','General Holidays','Taxes','Saturday Duties'];
     const res=await Promise.allSettled(sheets.map(async s=>{
       const text=await apiFetch(`${PROXY_URL}?action=getSheet&sheetName=${encodeURIComponent(s)}`);
       if(!text) return [];
@@ -2324,6 +2427,7 @@ async function fetchLeaveData(){
     employeeBirthdays=res[3].status==='fulfilled'?res[3].value:[];
     generalHolidays  =res[4].status==='fulfilled'?res[4].value:[];
     taxData          =res[5].status==='fulfilled'?res[5].value:[];
+    satDuties        =res[6].status==='fulfilled'?res[6].value:[];
     return true;
   }catch(e){return false;}
 }
