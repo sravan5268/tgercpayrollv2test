@@ -1,5 +1,4 @@
 // netlify/functions/proxy.js
-const fetch   = require('node-fetch');
 const GAS_URL   = process.env.GAS_URL;
 const API_TOKEN = process.env.API_TOKEN;
 
@@ -46,7 +45,8 @@ exports.handler = async function (event) {
   const gasUrl = `${GAS_URL}?${forwardParams.toString()}`;
 
   try {
-    // First fetch — GAS will 302 redirect
+    // First fetch — GAS will 302 redirect. Netlify's Node 18+ runtime has
+    // fetch built in globally, so no node-fetch import is needed here.
     const r1 = await fetch(gasUrl, { redirect: 'manual' });
 
     let finalResponse;
