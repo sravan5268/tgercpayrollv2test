@@ -422,6 +422,40 @@ tr:hover td{background:#f5f9ff}
   .kyt-metrics{grid-template-columns:repeat(2,1fr)}
   #knowtax-tab .kyt-header{flex-direction:column;align-items:flex-start}
 }
+
+/* ── FORGOT PASSWORD ── */
+#fpPanel{display:none;margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem}
+.fp-step{display:none}.fp-step.active{display:block}
+.fp-otp-input{letter-spacing:.35em;font-size:20px;font-weight:700;text-align:center;width:100%;padding:10px;border:2px solid var(--blue);border-radius:6px;outline:none;box-sizing:border-box;font-family:inherit}
+.fp-timer{font-size:11px;color:var(--muted);text-align:center;margin-top:4px}
+.fp-timer.urgent{color:#b71c1c;font-weight:700}
+.fp-msg{font-size:12px;font-weight:600;margin-top:6px;display:none;text-align:center}
+
+/* ── PROFILE TAB ── */
+#profile-tab .prof-section{background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden}
+#profile-tab .prof-section-hdr{background:var(--blue-light);padding:.75rem 1.25rem;font-size:13px;font-weight:700;color:var(--blue);border-bottom:1px solid var(--border)}
+#profile-tab .prof-section-body{padding:1.1rem 1.25rem}
+#profile-tab .prof-field-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+#profile-tab .prof-field{display:flex;flex-direction:column;gap:4px}
+#profile-tab .prof-field label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+#profile-tab .prof-field input{padding:8px 11px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit;outline:none;transition:border .2s}
+#profile-tab .prof-field input:focus{border-color:var(--blue)}
+#profile-tab .prof-field input[readonly]{background:#f8f9fb;color:var(--muted);cursor:not-allowed}
+#profile-tab .prof-readonly-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem;margin-bottom:1rem}
+#profile-tab .prof-ro-card{background:#f8f9fb;border:1px solid var(--border);border-radius:7px;padding:.7rem 1rem;position:relative;overflow:hidden}
+#profile-tab .prof-ro-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--muted)}
+#profile-tab .prof-ro-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:3px;font-weight:600}
+#profile-tab .prof-ro-val{font-size:13px;font-weight:700;color:#1a2a3a;word-break:break-word}
+.prof-save-bar{display:flex;align-items:center;gap:.75rem;margin-top:1rem}
+.prof-save-btn{background:var(--blue);color:#fff;border:none;padding:9px 24px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s}
+.prof-save-btn:hover{background:#0d5c8c}
+.prof-save-btn:disabled{background:var(--muted);cursor:not-allowed}
+#profMsg{font-size:12px;font-weight:600;display:none}
+.prof-updated{font-size:11px;color:var(--muted);margin-top:.5rem;font-style:italic}
+@media(max-width:700px){
+  #profile-tab .prof-field-grid{grid-template-columns:1fr}
+  #profile-tab .prof-readonly-grid{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
 <body>
@@ -467,12 +501,55 @@ tr:hover td{background:#f5f9ff}
     <div class="fg"><label>Employee Code</label><input type="text" id="inCode" placeholder="e.g. 1046" onkeydown="if(event.key==='Enter')document.getElementById('inPwd').focus()"/></div>
     <div class="fg"><label>Password (Last 4 digits of Bank A/C)</label><input type="password" id="inPwd" placeholder="Enter 4-digit password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <button class="login-btn" id="loginBtn" onclick="doLogin()">Sign In</button>
-    <div style="text-align:center;margin-top:1rem;font-size:12px;color:var(--muted)"><a href="javascript:void(0)" onclick="toggleAdminForm()" style="color:var(--accent);text-decoration:underline">Admin Login</a></div>
+    <div style="text-align:center;margin-top:.75rem;font-size:12px;color:var(--muted);display:flex;justify-content:center;gap:1.2rem">
+      <a href="javascript:void(0)" onclick="toggleAdminForm()" style="color:var(--accent);text-decoration:underline">Admin Login</a>
+      <a href="javascript:void(0)" onclick="toggleForgotPwd()" style="color:var(--accent);text-decoration:underline">Forgot Password?</a>
+    </div>
     <div id="adminForm" style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;display:none">
       <div class="fg"><label>Admin Username</label><input type="text" id="adminUser" placeholder="Username" onkeydown="if(event.key==='Enter')doAdminLogin()"/></div>
       <div class="fg"><label>Admin Password</label><input type="password" id="adminPass" placeholder="Password" onkeydown="if(event.key==='Enter')doAdminLogin()"/></div>
       <div class="err" id="adminErr">Invalid admin credentials.</div>
       <button class="login-btn" style="background:#555" onclick="doAdminLogin()">Admin Sign In</button>
+    </div>
+
+    <!-- ── FORGOT PASSWORD PANEL ── -->
+    <div id="fpPanel">
+      <!-- Step 1: Enter employee code -->
+      <div class="fp-step active" id="fpStep1">
+        <div class="fg" style="margin-top:.5rem">
+          <label>Enter your Employee Code</label>
+          <input type="text" id="fpCode" placeholder="e.g. 1046" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <button onclick="requestOTP()" style="width:100%;background:var(--teal,#0d7377);color:#fff;border:none;padding:9px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;margin-top:.5rem" id="fpSendBtn">Send OTP to Registered Email</button>
+        <div class="fp-msg" id="fpMsg1"></div>
+      </div>
+      <!-- Step 2: Enter OTP + new password -->
+      <div class="fp-step" id="fpStep2">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:.75rem;text-align:center" id="fpEmailHint"></div>
+        <div class="fg">
+          <label>Enter OTP</label>
+          <input type="text" id="fpOTP" maxlength="6" placeholder="6-digit OTP" class="fp-otp-input" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+          <div class="fp-timer" id="fpTimer">OTP valid for <span id="fpTimerCount">10:00</span></div>
+        </div>
+        <div class="fg" style="margin-top:.5rem">
+          <label>New Password <span style="font-weight:400">(min 4 chars)</span></label>
+          <input type="password" id="fpNewPwd" placeholder="New password" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <div class="fg" style="margin-top:.5rem">
+          <label>Confirm New Password</label>
+          <input type="password" id="fpConfirmPwd" placeholder="Confirm new password" style="width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box"/>
+        </div>
+        <button onclick="verifyOTPAndReset()" style="width:100%;background:var(--blue);color:#fff;border:none;padding:9px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;margin-top:.5rem" id="fpVerifyBtn">Reset Password</button>
+        <div style="text-align:center;margin-top:.5rem"><a href="javascript:void(0)" onclick="fpResend()" style="font-size:11px;color:var(--accent);text-decoration:underline">Resend OTP</a></div>
+        <div class="fp-msg" id="fpMsg2"></div>
+      </div>
+      <!-- Step 3: Success -->
+      <div class="fp-step" id="fpStep3" style="text-align:center;padding:1rem 0">
+        <div style="font-size:32px">✅</div>
+        <div style="font-size:14px;font-weight:700;color:var(--blue);margin:.5rem 0">Password Reset Successful!</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:.75rem">You can now log in with your new password.</div>
+        <button onclick="closeForgotPwd()" style="background:var(--blue);color:#fff;border:none;padding:8px 20px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer">Back to Login</button>
+      </div>
     </div>
   </div>
 </div>
@@ -541,6 +618,7 @@ tr:hover td{background:#f5f9ff}
       <div class="dash-tab" onclick="switchTab('knowtax')">💰 Know Tax</div>
       <div class="dash-tab" onclick="switchTab('leave')">🗓 Leave</div>
       <div class="dash-tab" onclick="switchTab('calendar')" id="calTabBtn">📅 Calendar</div>
+      <div class="dash-tab" onclick="switchTab('profile')">👤 My Profile</div>
     </div>
 
     <!-- ── HOME TAB ── -->
@@ -779,6 +857,65 @@ tr:hover td{background:#f5f9ff}
         <button class="cal-month-nav-btn" onclick="calNavNext()">Next ▶</button>
       </div>
       <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <!-- ── PROFILE TAB ── -->
+    <div id="profile-tab" class="tab-content">
+      <div style="max-width:860px;margin:0 auto;padding:.5rem 0">
+
+        <!-- Read-only info -->
+        <div class="prof-section">
+          <div class="prof-section-hdr">🏛 Your Official Details <span style="font-size:11px;font-weight:400;color:var(--muted)">(managed by Administration — cannot be edited)</span></div>
+          <div class="prof-section-body">
+            <div class="prof-readonly-grid">
+              <div class="prof-ro-card"><div class="prof-ro-label">Employee Code</div><div class="prof-ro-val" id="prCode">--</div></div>
+              <div class="prof-ro-card"><div class="prof-ro-label">Full Name</div><div class="prof-ro-val" id="prName">--</div></div>
+              <div class="prof-ro-card"><div class="prof-ro-label">Designation</div><div class="prof-ro-val" id="prDesg">--</div></div>
+              <div class="prof-ro-card"><div class="prof-ro-label">Department</div><div class="prof-ro-val" id="prDept">--</div></div>
+              <div class="prof-ro-card"><div class="prof-ro-label">Category</div><div class="prof-ro-val" id="prCat">--</div></div>
+              <div class="prof-ro-card"><div class="prof-ro-label">Level of Pay</div><div class="prof-ro-val" id="prLevel">--</div></div>
+              <div class="prof-ro-card"><div class="prof-ro-label">Date of Joining</div><div class="prof-ro-val" id="prDoj">--</div></div>
+              <div class="prof-ro-card"><div class="prof-ro-label">PAN</div><div class="prof-ro-val" id="prPan">--</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Editable contact info -->
+        <div class="prof-section">
+          <div class="prof-section-hdr">📋 Your Contact Details <span style="font-size:11px;font-weight:400;color:var(--muted)">(you can update these)</span></div>
+          <div class="prof-section-body">
+            <div class="prof-field-grid">
+              <div class="prof-field">
+                <label>Mobile Number</label>
+                <input type="tel" id="prMobile" placeholder="10-digit mobile number" maxlength="10"/>
+              </div>
+              <div class="prof-field">
+                <label>Email Address</label>
+                <input type="email" id="prEmail" placeholder="Your email address"/>
+              </div>
+              <div class="prof-field">
+                <label>Emergency Contact Name</label>
+                <input type="text" id="prEmgName" placeholder="Name of emergency contact"/>
+              </div>
+              <div class="prof-field">
+                <label>Emergency Contact Number</label>
+                <input type="tel" id="prEmgPhone" placeholder="Emergency contact number" maxlength="10"/>
+              </div>
+            </div>
+            <div class="prof-field" style="margin-top:.75rem">
+              <label>Current Address</label>
+              <input type="text" id="prAddress" placeholder="Your current residential address"/>
+            </div>
+            <div class="prof-save-bar">
+              <button class="prof-save-btn" id="profSaveBtn" onclick="saveProfile()">💾 Save Profile</button>
+              <span id="profMsg"></span>
+            </div>
+            <div class="prof-updated" id="profUpdated"></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:.5rem">⚠ Your email is also used for OTP-based password reset. Keep it up to date.</div>
+          </div>
+        </div>
+
+      </div>
     </div>
 
   </div>
@@ -1020,6 +1157,11 @@ let employees = []; // populated on page load via getEmployees action
 let adminConfig = {}; // populated on page load: { admin_user, admin_pass_hash }
 
 let fileIdMap={}, taxDocMap={}, months=[], leaveBalances=[], leaveHistory=[], optionalHolidays=[], generalHolidays=[], employeeBirthdays=[], taxData=[], notices=[], satDuties=[], currentEmp=null;
+
+// ── OTP / Forgot Password globals ──
+let _fpTimerInterval = null;
+let _fpSecondsLeft   = 0;
+let _fpCurrentCode   = '';
 let _allPsRows=[], _currentLeaveHistory=[];
 
 // ===== HELPERS =====
@@ -1138,16 +1280,17 @@ function calcWorkingDaysRemaining(){
 }
 
 function switchTab(t){
-  ['home','payslips','taxdocs','knowtax','leave','calendar'].forEach(x=>{
+  ['home','payslips','taxdocs','knowtax','leave','calendar','profile'].forEach(x=>{
     const el=document.getElementById(x+'-tab');
     if(el) el.classList.remove('active');
   });
   document.querySelectorAll('.dash-tab').forEach(x=>x.classList.remove('active'));
   document.getElementById(t+'-tab').classList.add('active');
-  const idx={'home':0,'payslips':1,'taxdocs':2,'knowtax':3,'leave':4,'calendar':5}[t];
+  const idx={'home':0,'payslips':1,'taxdocs':2,'knowtax':3,'leave':4,'calendar':5,'profile':6}[t];
   const tabs=document.querySelectorAll('.dash-tab');
   if(tabs[idx]) tabs[idx].classList.add('active');
   if(t==='calendar') buildCalendar(currentEmp);
+  if(t==='profile')  buildProfileTab(currentEmp);
 }
 
 function switchAdminTab(t){
@@ -3335,21 +3478,18 @@ async function submitChangePassword(){
   if(newVal !== confirmVal){ showMsg('❌ New password and confirm password do not match.', true); return; }
   if(newVal === currentVal){ showMsg('❌ New password must be different from current password.', true); return; }
 
-  // Verify current password matches what's stored
-  const hashedCurrent = await sha256(currentVal);
-  const isCurrentValid = currentEmp.customPwd
-    ? hashedCurrent === currentEmp.customPwd
-    : hashedCurrent === currentEmp.pwd;
-
-  if(!isCurrentValid){ showMsg('❌ Current password is incorrect.', true); return; }
-
+  // NOTE: current-password verification happens on the server (changePassword action),
+  // because getEmployees deliberately never sends password hashes to the client —
+  // there is nothing valid to compare against locally.
   showMsg('Updating...', false);
 
   try{
-    const hashedNew = await sha256(newVal);
+    const hashedCurrent = await sha256(currentVal);
+    const hashedNew     = await sha256(newVal);
     const qs = new URLSearchParams({
       action: 'changePassword',
       empCode: currentEmp.code,
+      currentPwdHash: hashedCurrent,
       newPwdHash: hashedNew
     });
     const resText = await apiFetch(`${PROXY_URL}?${qs.toString()}`);
@@ -3810,6 +3950,285 @@ async function refreshApproverQueue(){
   document.getElementById('apPendingList').innerHTML='<div class="fw-empty">Refreshing...</div>';
   await fetchLeaveData();
   loadApproverQueue();
+}
+
+// =====================================================================
+// FORGOT PASSWORD — OTP FLOW
+// =====================================================================
+
+function toggleForgotPwd(){
+  const panel = document.getElementById('fpPanel');
+  const admin = document.getElementById('adminForm');
+  const open  = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  if(!open){
+    admin.style.display = 'none';
+    fpReset();
+  }
+}
+
+function closeForgotPwd(){
+  document.getElementById('fpPanel').style.display = 'none';
+  fpReset();
+}
+
+function fpReset(){
+  clearInterval(_fpTimerInterval);
+  _fpTimerInterval = null;
+  _fpCurrentCode   = '';
+  ['fpStep1','fpStep2','fpStep3'].forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('active', i===0);
+  });
+  document.getElementById('fpCode').value    = '';
+  document.getElementById('fpOTP').value     = '';
+  document.getElementById('fpNewPwd').value  = '';
+  document.getElementById('fpConfirmPwd').value = '';
+  document.getElementById('fpMsg1').style.display = 'none';
+  document.getElementById('fpMsg2').style.display = 'none';
+}
+
+function fpShowMsg(elId, msg, ok){
+  const el = document.getElementById(elId);
+  el.textContent   = msg;
+  el.style.color   = ok ? 'var(--success,#166534)' : '#b71c1c';
+  el.style.display = 'block';
+}
+
+function fpStartTimer(seconds){
+  clearInterval(_fpTimerInterval);
+  _fpSecondsLeft = seconds;
+  const el = document.getElementById('fpTimerCount');
+  const wrap = document.getElementById('fpTimer');
+  const tick = () => {
+    const m = Math.floor(_fpSecondsLeft/60);
+    const s = _fpSecondsLeft % 60;
+    el.textContent = `${m}:${String(s).padStart(2,'0')}`;
+    if(_fpSecondsLeft <= 60) wrap.classList.add('urgent');
+    if(_fpSecondsLeft <= 0){
+      clearInterval(_fpTimerInterval);
+      el.textContent = 'Expired';
+      fpShowMsg('fpMsg2','OTP has expired. Please request a new one.',false);
+    }
+    _fpSecondsLeft--;
+  };
+  tick();
+  _fpTimerInterval = setInterval(tick, 1000);
+}
+
+async function requestOTP(){
+  const code  = document.getElementById('fpCode').value.trim();
+  const btnEl = document.getElementById('fpSendBtn');
+  const msgEl = document.getElementById('fpMsg1');
+
+  msgEl.style.display = 'none';
+  if(!code){ fpShowMsg('fpMsg1','Please enter your Employee Code.',false); return; }
+
+  btnEl.disabled    = true;
+  btnEl.textContent = 'Sending...';
+
+  try{
+    const qs  = new URLSearchParams({ action:'requestOTP', empCode: code });
+    const res = await fetch(`${PROXY_URL}?${qs.toString()}`);
+    const json = await res.json();
+
+    if(!json.success){
+      fpShowMsg('fpMsg1', json.error || 'Failed to send OTP.', false);
+      btnEl.disabled    = false;
+      btnEl.textContent = 'Send OTP to Registered Email';
+      return;
+    }
+
+    _fpCurrentCode = code;
+    // Show masked email hint
+    document.getElementById('fpEmailHint').textContent =
+      `OTP sent to: ${json.maskedEmail || 'your registered email'}`;
+
+    // Move to step 2
+    document.getElementById('fpStep1').classList.remove('active');
+    document.getElementById('fpStep2').classList.add('active');
+    fpStartTimer(600); // 10 minutes
+
+  } catch(err){
+    fpShowMsg('fpMsg1','Error: ' + err.message, false);
+    btnEl.disabled    = false;
+    btnEl.textContent = 'Send OTP to Registered Email';
+  }
+
+  btnEl.disabled    = false;
+  btnEl.textContent = 'Send OTP to Registered Email';
+}
+
+async function fpResend(){
+  document.getElementById('fpStep2').classList.remove('active');
+  document.getElementById('fpStep1').classList.add('active');
+  document.getElementById('fpCode').value = _fpCurrentCode;
+  clearInterval(_fpTimerInterval);
+  document.getElementById('fpMsg2').style.display='none';
+}
+
+async function verifyOTPAndReset(){
+  const otp     = document.getElementById('fpOTP').value.trim();
+  const newPwd  = document.getElementById('fpNewPwd').value.trim();
+  const confirm = document.getElementById('fpConfirmPwd').value.trim();
+  const btnEl   = document.getElementById('fpVerifyBtn');
+
+  document.getElementById('fpMsg2').style.display='none';
+
+  if(!otp || otp.length !== 6){ fpShowMsg('fpMsg2','Please enter the 6-digit OTP.',false); return; }
+  if(!newPwd || newPwd.length < 4){ fpShowMsg('fpMsg2','New password must be at least 4 characters.',false); return; }
+  if(newPwd !== confirm){ fpShowMsg('fpMsg2','Passwords do not match.',false); return; }
+  if(_fpSecondsLeft <= 0){ fpShowMsg('fpMsg2','OTP has expired. Please request a new one.',false); return; }
+
+  btnEl.disabled    = true;
+  btnEl.textContent = 'Verifying...';
+
+  try{
+    const newPwdHash = await sha256(newPwd);
+    const qs = new URLSearchParams({
+      action     : 'verifyOTP',
+      empCode    : _fpCurrentCode,
+      otp        : otp,
+      newPwdHash : newPwdHash,
+    });
+    const res  = await fetch(`${PROXY_URL}?${qs.toString()}`);
+    const json = await res.json();
+
+    if(!json.success){
+      fpShowMsg('fpMsg2', json.error || 'Invalid OTP. Please try again.', false);
+      btnEl.disabled    = false;
+      btnEl.textContent = 'Reset Password';
+      return;
+    }
+
+    // Success — update in-memory employee if they're the same person
+    if(currentEmp && norm(currentEmp.code) === norm(_fpCurrentCode)){
+      currentEmp.customPwd = newPwdHash;
+    }
+    // Update employees array too
+    const emp = (typeof employees !== 'undefined' ? employees : [])
+      .find(e => norm(e['Emp Code']) === norm(_fpCurrentCode));
+    if(emp) emp['Custom Password'] = newPwdHash;
+
+    clearInterval(_fpTimerInterval);
+    document.getElementById('fpStep2').classList.remove('active');
+    document.getElementById('fpStep3').classList.add('active');
+
+  } catch(err){
+    fpShowMsg('fpMsg2','Error: '+err.message, false);
+    btnEl.disabled    = false;
+    btnEl.textContent = 'Reset Password';
+  }
+}
+
+// =====================================================================
+// MY PROFILE TAB
+// =====================================================================
+
+function buildProfileTab(emp){
+  if(!emp) return;
+
+  // Read-only fields
+  document.getElementById('prCode').textContent  = emp.code  || emp['Emp Code']  || '--';
+  document.getElementById('prName').textContent  = emp.name  || emp['Name']       || '--';
+  document.getElementById('prDesg').textContent  = emp.desg  || emp['Designation']|| '--';
+  document.getElementById('prDept').textContent  = emp.dept  || emp['Department'] || '--';
+  document.getElementById('prCat').textContent   = emp.cat   || emp['Category']   || '--';
+  document.getElementById('prLevel').textContent = emp.level || emp['Level of Pay']|| '--';
+  document.getElementById('prPan').textContent   = emp.pan   || emp['PAN']        || '--';
+
+  // Format DOJ
+  const doj = emp.doj || emp['Date of Joining'];
+  if(doj){
+    const d = new Date(doj);
+    document.getElementById('prDoj').textContent = isNaN(d) ? doj :
+      d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  }
+
+  // Editable fields — pre-fill from employee object if available
+  document.getElementById('prMobile').value   = emp.mobile   || emp['Mobile']                   || '';
+  document.getElementById('prEmail').value    = emp.email    || emp['Email']                    || '';
+  document.getElementById('prEmgName').value  = emp.emgName  || emp['Emergency Contact Name']   || '';
+  document.getElementById('prEmgPhone').value = emp.emgPhone || emp['Emergency Contact Number'] || '';
+  document.getElementById('prAddress').value  = emp.address  || emp['Address']                  || '';
+
+  // Last updated
+  const upd = emp.profileUpdated || emp['Profile Last Updated'];
+  const updEl = document.getElementById('profUpdated');
+  if(upd){
+    const d = new Date(upd);
+    updEl.textContent = 'Last updated: ' + (isNaN(d) ? upd :
+      d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}));
+  } else {
+    updEl.textContent = 'Profile not yet updated.';
+  }
+
+  document.getElementById('profMsg').style.display = 'none';
+}
+
+async function saveProfile(){
+  const emp   = currentEmp;
+  if(!emp){ return; }
+
+  const mobile   = document.getElementById('prMobile').value.trim();
+  const email    = document.getElementById('prEmail').value.trim();
+  const emgName  = document.getElementById('prEmgName').value.trim();
+  const emgPhone = document.getElementById('prEmgPhone').value.trim();
+  const address  = document.getElementById('prAddress').value.trim();
+  const msgEl    = document.getElementById('profMsg');
+  const btnEl    = document.getElementById('profSaveBtn');
+
+  const showMsg = (txt, ok) => {
+    msgEl.textContent   = txt;
+    msgEl.style.color   = ok ? 'var(--success,#166534)' : '#b71c1c';
+    msgEl.style.display = 'block';
+  };
+
+  // Basic validation
+  if(mobile && !/^\d{10}$/.test(mobile)){ showMsg('Mobile number must be 10 digits.',false); return; }
+  if(emgPhone && !/^\d{10}$/.test(emgPhone)){ showMsg('Emergency contact number must be 10 digits.',false); return; }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showMsg('Please enter a valid email address.',false); return; }
+
+  btnEl.disabled    = true;
+  btnEl.textContent = '💾 Saving...';
+  msgEl.style.display = 'none';
+
+  try{
+    const empCode = norm(emp.code || emp['Emp Code'] || '');
+    const qs = new URLSearchParams({
+      action   : 'updateProfile',
+      empCode  : empCode,
+      mobile   : mobile,
+      email    : email,
+      emgName  : emgName,
+      emgPhone : emgPhone,
+      address  : address,
+    });
+    const txt  = await apiFetch(`${PROXY_URL}?${qs.toString()}`);
+    const json = txt ? JSON.parse(txt) : null;
+
+    if(!json || !json.success){
+      showMsg('❌ ' + (json?.error || 'Failed to save profile.'), false);
+      return;
+    }
+
+    // Update in-memory employee object
+    emp.mobile   = mobile;
+    emp.email    = email;
+    emp.emgName  = emgName;
+    emp.emgPhone = emgPhone;
+    emp.address  = address;
+    emp.profileUpdated = new Date().toISOString();
+
+    showMsg('✅ Profile saved successfully! A confirmation has been sent to your email.', true);
+    document.getElementById('profUpdated').textContent =
+      'Last updated: ' + new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  } catch(err){
+    showMsg('❌ Error: ' + err.message, false);
+  }
+
+  btnEl.disabled    = false;
+  btnEl.textContent = '💾 Save Profile';
 }
 
 // ===== PAGE LOAD =====
