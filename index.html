@@ -284,8 +284,8 @@ tr:hover td{background:#f5f9ff}
 .cal-bday{font-size:11px;line-height:1;margin-top:1px}
 .cal-dots{display:none}
 .cal-day[data-tip]{position:relative;cursor:pointer}
-.cal-day[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a2a3a;color:#fff;font-size:10px;padding:5px 8px;border-radius:5px;white-space:pre-line;z-index:200;min-width:120px;max-width:180px;text-align:center;pointer-events:none;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.25)}
-.cal-day[data-tip]:hover::before{content:'';position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1a2a3a;z-index:200;pointer-events:none}
+.cal-day[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a2a3a;color:#fff;font-size:10px;padding:7px 10px;border-radius:6px;white-space:pre-line;z-index:9999;min-width:160px;max-width:260px;width:max-content;text-align:left;pointer-events:none;line-height:1.6;box-shadow:0 4px 16px rgba(0,0,0,.35);word-break:break-word}
+.cal-day[data-tip]:hover::before{content:'';position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1a2a3a;z-index:9999;pointer-events:none}
 
 .cp-ok{color:var(--success)}.cp-err{color:var(--danger)}
 /* ── FORWARDER / APPROVER DASHBOARD ── */
@@ -1401,6 +1401,12 @@ async function initPortal(){
         level:      String(r['Level of Pay']||'').trim(),
         doj:        r['Date of Joining'] || null,
         gender:     String(r['Gender']||'').trim(),
+        mobile:         String(r['Mobile']||'').trim(),
+        email:          String(r['Email']||'').trim(),
+        emgName:        String(r['Emergency Contact Name']||'').trim(),
+        emgPhone:       String(r['Emergency Contact Number']||'').trim(),
+        address:        String(r['Address']||'').trim(),
+        profileUpdated: r['Profile Last Updated'] || null,
       })));
       employees = hashed.filter(e=>e.code && e.name);
       // Also store forwarder/approver codes from employee master
@@ -2415,7 +2421,7 @@ function buildCalendar(emp, mobileNavTrigger){
   });
 
   const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const DA=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const DA=['Mo','Tu','We','Th','Fr','Sa','Su'];
 
   // Mobile: show only selected month; desktop: show all 12
   const isMobile = window.innerWidth<=620;
@@ -2427,14 +2433,15 @@ function buildCalendar(emp, mobileNavTrigger){
   const moEnd  =isMobile?_calMobileMonth+1:12;
   for(let mo=moStart;mo<moEnd;mo++){
     const firstDay=new Date(calYear,mo,1).getDay();
+    const firstDayMon=(firstDay+6)%7; // Mon=0, Tue=1, ... Sun=6
     const daysInMonth=new Date(calYear,mo+1,0).getDate();
     const wrap=document.createElement('div'); wrap.className='cal-month';
     const hdr=document.createElement('div'); hdr.className='cal-month-hdr'; hdr.textContent=MN[mo]+' '+calYear; wrap.appendChild(hdr);
     const dowRow=document.createElement('div'); dowRow.className='cal-dow-row';
-    DA.forEach((d,i)=>{const span=document.createElement('div');span.className='cal-dow'+(i===0?' sun':'');span.textContent=d;dowRow.appendChild(span);});
+    DA.forEach((d,i)=>{const span=document.createElement('div');span.className='cal-dow'+(i===6?' sun':'');span.textContent=d;dowRow.appendChild(span);});
     wrap.appendChild(dowRow);
     const daysWrap=document.createElement('div'); daysWrap.className='cal-days';
-    for(let e=0;e<firstDay;e++){const empty=document.createElement('div');empty.className='cal-day empty';empty.innerHTML='<span style="font-size:9px;color:#ccc">*</span>';daysWrap.appendChild(empty);}
+    for(let e=0;e<firstDayMon;e++){const empty=document.createElement('div');empty.className='cal-day empty';empty.innerHTML='<span style="font-size:9px;color:#ccc">*</span>';daysWrap.appendChild(empty);}
 
     for(let day=1;day<=daysInMonth;day++){
       const date=new Date(calYear,mo,day); const dow=date.getDay();
@@ -2512,7 +2519,7 @@ function buildCalendar(emp, mobileNavTrigger){
       }
       daysWrap.appendChild(cell);
     }
-    const totalCells=firstDay+daysInMonth; const remainder=totalCells%7;
+    const totalCells=firstDayMon+daysInMonth; const remainder=totalCells%7;
     if(remainder>0){for(let t=0;t<(7-remainder);t++){const empty=document.createElement('div');empty.className='cal-day empty';empty.innerHTML='<span style="font-size:9px;color:#ccc">*</span>';daysWrap.appendChild(empty);}}
     wrap.appendChild(daysWrap); grid.appendChild(wrap);
   }
