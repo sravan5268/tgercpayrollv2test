@@ -1272,7 +1272,6 @@ let _dlFilter='all', _dlSearchTerm='';
 let _fpTimerInterval = null;
 let _fpSecondsLeft   = 0;
 let _fpCurrentCode   = '';
-let _allPsRows=[], _currentLeaveHistory=[];
 
 // ===== HELPERS =====
 function initials(n){return n.trim().split(/\s+/).filter(w=>/[A-Za-z]/.test(w)).slice(0,2).map(w=>w[0].toUpperCase()).join('');}
@@ -1519,6 +1518,7 @@ async function initPortal(){
         address:        String(r['Address']||'').trim(),
         profileUpdated: r['Profile Last Updated'] || null,
         photoId:        String(r['Photo']||'').trim(),
+      })));
       employees = hashed.filter(e=>e.code && e.name);
       // Also store forwarder/approver codes from employee master
       employees.forEach((e,i)=>{
